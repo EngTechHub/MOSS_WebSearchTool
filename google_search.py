@@ -212,10 +212,21 @@ def engine(q, SERPER_KEY,ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh, t
 
     if "answerBox" in response.keys():
         url = response["answerBox"].get("link", response["organic"][0]["link"])
-        summ = response["answerBox"]
+        answerBox = response["answerBox"]
+        summ = ""
+        title = q
+        if "title" in answerBox:
+            title = answerBox["title"]
+
+        if "answer" in answerBox:
+            summ = answerBox["answer"]
+
+        if "snippet" in answerBox:
+            summ = answerBox["snippet"]
+
         print("[EnGINE] answerBox")
         print("[ENGINE] query cost:", time.time() - start_time)
-        return {"url": url, "summ": summ, "note": "directly return answerBox, thx google !", "type": "answerBox"}
+        return {"0": {"url": url, "title": title, "summ": summ, "note": "directly return answerBox, thx google !", "type": "answerBox", "origin": answerBox}}
 
     raw_urls = [i["link"] for i in response["organic"]]
     raw_snippets = [i["snippet"] for i in response["organic"]]
