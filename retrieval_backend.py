@@ -1,5 +1,6 @@
 import time
-import re
+import os
+import sys
 
 import fasttext
 from google_search import engine
@@ -61,7 +62,9 @@ class Inference(Worker):
         
         self.topk = 3
 
-        self.SERPER_KEY = re.sub("\n", "", open("serper_key").readline())
+        self.SERPER_KEY = os.getenv("SERPER_KEY")
+        if self.SERPER_KEY is None or self.SERPER_KEY == "":
+            sys.exit("env SERPER_KEY is not set !!!")
 
 
     def forward(self, data):
@@ -92,7 +95,10 @@ class Inference(Worker):
 
 
 if __name__ == "__main__":
-    NUM_DEVICE = 16
+    WORKER_NUM = os.getenv("WORKER_NUM")
+    NUM_DEVICE = int(WORKER_NUM) if WORKER_NUM and WORKER_NUM.isdigit() else 16
+    if NUM_DEVICE <= 0:
+        NUM_DEVICE = 16
     server = Server()
     server.append_worker(Preprocess, num=NUM_DEVICE)
     server.append_worker(Inference, 
