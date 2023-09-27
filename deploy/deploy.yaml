@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: moss-websearch
+  name: moss-websearch
+  namespace: cloud-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moss-websearch
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: moss-websearch
+    spec:
+      containers:
+      - name: moss-websearch
+        image: paradiseds/retrieval:0.7
+        imagePullPolicy: Always
+        command: ["/bin/bash"]
+        args: ["-c", "ln -s /fasttext-models/cc.en.300.bin /retrieval/cc.en.300.bin && ln -s /fasttext-models/cc.zh.300.bin /retrieval/cc.zh.300.bin && python3 retrieval_backend.py --port 7004 --timeout 60000"]
+        env:
+        - name: "SERPER_KEY"
+          valueFrom:
+            secretKeyRef:
+              name: serper_key
+              key: key
+        securityContext:
+          capabilities:
+            add:
+            - SYS_PTRACE
+        resources: {}
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        volumeMounts:
+        - mountPath: /fasttext-models
+          name: fasttext-models
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      - name: fasttext-models
+        persistentVolumeClaim:
+          claimName: websearch-fasttext-models
+status: {}

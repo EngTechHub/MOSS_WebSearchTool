@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: moss-websearch
+  namespace: cloud-dev
+  labels:
+    app: moss-websearch
+    server: mosec
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 7004
+    targetPort: 7004
+  selector:
+    app: moss-websearch
