@@ -4,6 +4,7 @@ Command-line application that does a search.
 """
 
 __author__ = "xtzhang"
+import os
 import re
 import unicodedata as ucd
 import warnings
@@ -40,6 +41,10 @@ from bs4 import BeautifulSoup
 
 from textrank_utils import top_sentence
 from score_utils import score, score_2, score_3
+
+import logging
+
+logger = logging.getLogger()
 
 
 class prey(object):
@@ -94,13 +99,13 @@ def select(new):
     return oral
 
 def get_web_response(url):
-    print("[ENGINE] get web response")
+    logger.info(f"[ENGINE] try to get web response from url={url}")
     try:
         response = requests.get(url=url, timeout=5)
         response.encoding = 'utf-8'
         return response
-    except requests.exceptions.RequestException:
-        print("requests post fail")
+    except requests.exceptions.RequestException as e:
+        logger.info(f"requests post fail, url={url}, exception is {e}")
         return None
 
 def extract_description(soup):
@@ -112,8 +117,7 @@ def extract_description(soup):
     return None
 
 def summ_web(q, url, ft_en, ft_zh, is_eng, nlp_en, nlp_zh, measure_en, measure_zh, snippet,title):
-    print(q)
-    print(url)
+    logger.info(f"summ_web starts for url={url} query={q}")
     #start_time = time.time()
     url = parse.unquote(url)
     
@@ -187,6 +191,15 @@ def search_api(q, SERPER_KEY):
 
     return response_dict
 
+def bing_search_api(q, bing_subscription_key, mkt="zh-CN"):
+    endpoint = "https://api.bing.microsoft.com/v7.0/search"
+    params = { "q": q, "mkt": mkt, "count": "20"}
+    headers = { "Ocp-Apim-Subscription-Key": bing_subscription_key }
+
+    response = requests.get(endpoint, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
+
 def filter_urls(urls, snippets, titles, black_list=None, topk=3):
     if black_list is None:
         black_list = ["enoN, youtube.com, bilibili.com", "zhihu.com"]
@@ -245,6 +258,46 @@ def engine(q, SERPER_KEY,ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh, t
     print("[ENGINE] query cost:", time.time() - start_time)
     return results   
 
+def bing_engine(q: str, bing_subscription_key: str, ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh, topk=3):
+    start_time = time.time()
+    is_eng = containenglish(q)
+
+    response = bing_search_api(q, bing_subscription_key)
+    webpages = {w["id"]: w for w in response["webPages"]["value"]}
+    raw_urls = []
+    raw_snippets = []
+    raw_titles = []
+    for i, item in enumerate(response["rankingResponse"]["mainline"]["items"]):
+        if item["answerType"] == "WebPages":
+            webpage = webpages[item["value"]["id"]]
+            if webpage is not None:
+                raw_urls.append(webpage["url"])
+                raw_snippets.append(webpage["snippet"])
+                raw_titles.append(webpage["name"])
+
+        if item["answerType"] == "News":
+            if item["value"]["id"] == response["news"]["id"]:
+                logger.info(f"got news at index {i} with length {len(response['news']['value'])} for query={q}")
+                for n in response["news"]["value"]:
+                    raw_urls.append(n["url"])
+                    raw_snippets.append(n["description"])
+                    raw_titles.append(n["name"])
+
+    urls, snippets, titles = filter_urls(raw_urls, raw_snippets, raw_titles, topk=topk)
+
+    results = {}
+    for i, url in enumerate(urls):
+        try:
+            summ = summ_web(q, url, ft_en, ft_zh, is_eng, nlp_en, nlp_zh, measure_en, measure_zh, snippets[i], titles[i])
+        except:
+            summ = {"url": url, "summ": snippets[i], "note": "unbelievable error, use snippet !", "type": "snippet", "title":titles[i]}
+
+        results[str(i)] = summ
+
+    logger.info("[ENGINE] cost {}s for query={}".format(time.time() - start_time, q))
+    return results
+
+
 if __name__ == "__main__":
     import time
     print("loading embeddings ...")
@@ -266,6 +319,9 @@ if __name__ == "__main__":
     #engine("quick sort", measure_en, measure_zh)#yes
     #engine("document image rectification", ft_en, ft_zh, measure_en, measure_zh)#yes
     #engine("忽如一夜春风来，千树万树梨花开 季节", ft_en, ft_zh, measure_en, measure_zh)#no
-    print(engine("奔驰c 比亚迪model y 比较", open("serper_key").readline(), ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh))#yes
+    print(bing_engine("奔驰c 比亚迪model y 比较", os.getenv("BING_SUB_KEY"), ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh))
+    print(bing_engine("诺贝尔奖", os.getenv("BING_SUB_KEY"), ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh))
+    print(bing_engine("亚运会", os.getenv("BING_SUB_KEY"), ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh))
+    print(bing_engine("巴以冲突", os.getenv("BING_SUB_KEY"), ft_en, ft_zh, nlp_en, nlp_zh, measure_en, measure_zh))
     print(time.time() - start_time)
 

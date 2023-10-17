@@ -20,15 +20,15 @@ spec:
     spec:
       containers:
       - name: moss-websearch
-        image: paradiseds/retrieval:0.7
+        image: paradiseds/retrieval:0.7-bing
         imagePullPolicy: Always
         command: ["/bin/bash"]
         args: ["-c", "ln -s /fasttext-models/cc.en.300.bin /retrieval/cc.en.300.bin && ln -s /fasttext-models/cc.zh.300.bin /retrieval/cc.zh.300.bin && python3 retrieval_backend.py --port 7004 --timeout 60000"]
         env:
-        - name: "SERPER_KEY"
+        - name: "BING_SUB_KEY"
           valueFrom:
             secretKeyRef:
-              name: serper_key
+              name: bing-search-sub-key
               key: key
         securityContext:
           capabilities:

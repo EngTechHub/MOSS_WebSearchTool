@@ -3,7 +3,7 @@ import os
 import sys
 
 import fasttext
-from google_search import engine
+from google_search import engine, bing_engine
 
 import logging
 from typing import Any, List
@@ -61,10 +61,10 @@ class Inference(Worker):
         print("embeddings loaded ...")
         
         self.topk = 3
-
-        self.SERPER_KEY = os.getenv("SERPER_KEY")
-        if self.SERPER_KEY is None or self.SERPER_KEY == "":
-            sys.exit("env SERPER_KEY is not set !!!")
+        
+        self.bing_subscription_key = os.getenv("BING_SUB_KEY")
+        if self.bing_subscription_key is None or self.bing_subscription_key == "":
+            sys.exit("env BING_SUB_KEY is not set !!!")
 
 
     def forward(self, data):
@@ -75,10 +75,11 @@ class Inference(Worker):
         if "topk" in json_data.keys():
             topk = int(json_data["topk"])
         start_time = time.time()
-        response = engine(query, SERPER_KEY=self.SERPER_KEY,
-                          ft_en=self.ft_en, 
-                          ft_zh=self.ft_zh, 
-                          nlp_en=self.nlp_en, 
+        response = bing_engine(q=query,
+                          bing_subscription_key=self.bing_subscription_key,
+                          ft_en=self.ft_en,
+                          ft_zh=self.ft_zh,
+                          nlp_en=self.nlp_en,
                           nlp_zh=self.nlp_zh,
                           measure_en=self.measure_en,
                           measure_zh=self.measure_zh,
